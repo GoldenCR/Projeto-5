@@ -2,6 +2,8 @@
 #include <stdlib.h>
 #include <string.h>
 
+#define MAX_CONTATOS 255
+
 struct Usuario {
     char nome[50];
     char sobrenome[50];
@@ -9,24 +11,27 @@ struct Usuario {
     char telefone[20];
 };
 
-void adicionarUsuario(struct Usuario **lista, int *numUsuarios) {
-    *lista = realloc(*lista, (*numUsuarios + 1) * sizeof(struct Usuario));
-    if (*lista == NULL) {
-        printf("Erro ao alocar memória.\n");
-        exit(EXIT_FAILURE);
+void adicionarUsuario(struct Usuario *lista, int *numUsuarios) {
+    if (*numUsuarios >= MAX_CONTATOS) {
+        printf("Lista de contatos cheia.\n");
+        return;
     }
 
-    printf("Digite o nome do usuario: ");
-    scanf("%s", (*lista)[*numUsuarios].nome);
+    printf("Digite o nome do usuário: ");
+    fgets(lista[*numUsuarios].nome, 50, stdin);
+    lista[*numUsuarios].nome[strcspn(lista[*numUsuarios].nome, "\n")] = '\0';  
 
-    printf("Digite o sobrenome do usuario: ");
-    scanf("%s", (*lista)[*numUsuarios].sobrenome);
+    printf("Digite o sobrenome do usuário: ");
+    fgets(lista[*numUsuarios].sobrenome, 50, stdin);
+    lista[*numUsuarios].sobrenome[strcspn(lista[*numUsuarios].sobrenome, "\n")] = '\0';
 
-    printf("Digite o email do usuario: ");
-    scanf("%s", (*lista)[*numUsuarios].email);
+    printf("Digite o email do usuário: ");
+    fgets(lista[*numUsuarios].email, 100, stdin);
+    lista[*numUsuarios].email[strcspn(lista[*numUsuarios].email, "\n")] = '\0';
 
-    printf("Digite o telefone do usuario: ");
-    scanf("%s", (*lista)[*numUsuarios].telefone);
+    printf("Digite o telefone do usuário: ");
+    fgets(lista[*numUsuarios].telefone, 20, stdin);
+    lista[*numUsuarios].telefone[strcspn(lista[*numUsuarios].telefone, "\n")] = '\0';
 
     (*numUsuarios)++;
 }
@@ -46,15 +51,17 @@ void mostrarUsuarios(struct Usuario *lista, int numUsuarios) {
     }
 }
 
-void deletarUsuarios(struct Usuario **lista, int *numUsuarios) {
+void deletarUsuarios(struct Usuario *lista, int *numUsuarios) {
     char telefone[20];
     printf("Digite o número de telefone do usuário que deseja deletar: ");
-    scanf("%s", telefone);
+    fgets(telefone, 20, stdin);
+    telefone[strcspn(telefone, "\n")] = '\0';
+
     int encontrado = 0;
     for (int i = 0; i < *numUsuarios; i++) {
-        if (strcmp((*lista)[i].telefone, telefone) == 0) {
+        if (strcmp(lista[i].telefone, telefone) == 0) {
             for (int j = i; j < *numUsuarios - 1; j++) {
-                (*lista)[j] = (*lista)[j + 1];
+                lista[j] = lista[j + 1];
             }
             (*numUsuarios)--;
             encontrado = 1;
@@ -66,83 +73,147 @@ void deletarUsuarios(struct Usuario **lista, int *numUsuarios) {
     if (!encontrado) {
         printf("Usuário não encontrado.\n");
     }
+}
 
-    *lista = realloc(*lista, (*numUsuarios) * sizeof(struct Usuario));
-    if (*numUsuarios > 0 && *lista == NULL) {
-        printf("Erro ao alocar memória.\n");
-        exit(EXIT_FAILURE);
+void alterarUsuario(struct Usuario *lista, int numUsuarios) {
+    char telefone[20];
+    printf("Digite o número de telefone do usuário que deseja alterar: ");
+    fgets(telefone, 20, stdin);
+    telefone[strcspn(telefone, "\n")] = '\0';
+
+    int encontrado = 0;
+    for (int i = 0; i < numUsuarios; i++) {
+        if (strcmp(lista[i].telefone, telefone) == 0) {
+            printf("Digite o novo nome do usuário: ");
+            fgets(lista[i].nome, 50, stdin);
+            lista[i].nome[strcspn(lista[i].nome, "\n")] = '\0';
+
+            printf("Digite o novo sobrenome do usuário: ");
+            fgets(lista[i].sobrenome, 50, stdin);
+            lista[i].sobrenome[strcspn(lista[i].sobrenome, "\n")] = '\0';
+
+            printf("Digite o novo email do usuário: ");
+            fgets(lista[i].email, 100, stdin);
+            lista[i].email[strcspn(lista[i].email, "\n")] = '\0';
+
+            printf("Digite o novo telefone do usuário: ");
+            fgets(lista[i].telefone, 20, stdin);
+            lista[i].telefone[strcspn(lista[i].telefone, "\n")] = '\0';
+
+            printf("Usuário alterado com sucesso.\n");
+            encontrado = 1;
+            break;
+        }
+    }
+
+    if (!encontrado) {
+        printf("Usuário não encontrado.\n");
     }
 }
 
-void salvarAgenda(struct Usuario *lista, int numUsuarios) {
-    FILE *arquivo;
-    arquivo = fopen("agenda.bin", "wb");
+void salvarAgenda(struct Usuario *listaPessoal, int numUsuariosPessoal, struct Usuario *listaTrabalho, int numUsuariosTrabalho) {
+    FILE *arquivo = fopen("agenda.bin", "wb");
     if (arquivo == NULL) {
         printf("Erro ao abrir o arquivo.\n");
         return;
     }
-    fwrite(&numUsuarios, sizeof(int), 1, arquivo);
-    fwrite(lista, sizeof(struct Usuario), numUsuarios, arquivo);
+    fwrite(&numUsuariosPessoal, sizeof(int), 1, arquivo);
+    fwrite(listaPessoal, sizeof(struct Usuario), numUsuariosPessoal, arquivo);
+    fwrite(&numUsuariosTrabalho, sizeof(int), 1, arquivo);
+    fwrite(listaTrabalho, sizeof(struct Usuario), numUsuariosTrabalho, arquivo);
     fclose(arquivo);
     printf("Agenda salva com sucesso.\n");
 }
 
-void carregarAgenda(struct Usuario **lista, int *numUsuarios) {
-    FILE *arquivo;
-    arquivo = fopen("agenda.bin", "rb");
+void carregarAgenda(struct Usuario *listaPessoal, int *numUsuariosPessoal, struct Usuario *listaTrabalho, int *numUsuariosTrabalho) {
+    FILE *arquivo = fopen("agenda.bin", "rb");
     if (arquivo == NULL) {
         printf("Erro ao abrir o arquivo.\n");
         return;
     }
-    fread(numUsuarios, sizeof(int), 1, arquivo);
-    *lista = (struct Usuario *)malloc(*numUsuarios * sizeof(struct Usuario));
-    if (*lista == NULL) {
-        printf("Erro ao alocar memória.\n");
-        exit(EXIT_FAILURE);
-    }
-    fread(*lista, sizeof(struct Usuario), *numUsuarios, arquivo);
+    fread(numUsuariosPessoal, sizeof(int), 1, arquivo);
+    fread(listaPessoal, sizeof(struct Usuario), *numUsuariosPessoal, arquivo);
+    fread(numUsuariosTrabalho, sizeof(int), 1, arquivo);
+    fread(listaTrabalho, sizeof(struct Usuario), *numUsuariosTrabalho, arquivo);
     fclose(arquivo);
     printf("Agenda carregada com sucesso.\n");
 }
 
 int main() {
-    struct Usuario *listaUsuarios = NULL;
-    int numUsuarios = 0;
+    struct Usuario listaPessoal[MAX_CONTATOS];
+    struct Usuario listaTrabalho[MAX_CONTATOS];
+    int numUsuariosPessoal = 0;
+    int numUsuariosTrabalho = 0;
     int opcao;
+    char buffer[10];  
+
     do {
+        printf("------------------------------------------");
         printf("\nMenu:\n");
-        printf("1. Adicionar Usuário\n");
-        printf("2. Mostrar Usuários\n");
-        printf("3. Deletar Usuário\n");
-        printf("4. Salvar Agenda\n");
-        printf("5. Carregar Agenda\n");
-        printf("6. Sair\n");
-        printf("Escolha uma opção: ");
-        scanf("%d", &opcao);
+        printf("1. Adicionar Contato Pessoal\n");
+        printf("2. Adicionar Contato de Trabalho\n");
+        printf("3. Mostrar Contato Pessoais\n");
+        printf("4. Mostrar Contato de Trabalho\n");
+        printf("5. Deletar Contato Pessoal\n");
+        printf("6. Deletar Contato de Trabalho\n");
+        printf("7. Alterar Contato Pessoal\n");
+        printf("8. Alterar Contato de Trabalho\n");
+        printf("9. Salvar Agenda\n");
+        printf("10. Carregar Agenda\n");
+        printf("11. Sair\n");
+        printf("------------------------------------------");
+        printf("\nEscolha uma opção: ");
+        fgets(buffer, 10, stdin);
+        opcao = atoi(buffer);
+
         switch(opcao) {
             case 1:
-                adicionarUsuario(&listaUsuarios, &numUsuarios);
+              printf("\n");
+                adicionarUsuario(listaPessoal, &numUsuariosPessoal);
                 break;
             case 2:
-                mostrarUsuarios(listaUsuarios, numUsuarios);
+              printf("\n");
+                adicionarUsuario(listaTrabalho, &numUsuariosTrabalho);
                 break;
             case 3:
-                deletarUsuarios(&listaUsuarios, &numUsuarios);
+              printf("\n");
+                mostrarUsuarios(listaPessoal, numUsuariosPessoal);
                 break;
             case 4:
-                salvarAgenda(listaUsuarios, numUsuarios);
+              printf("\n");
+                mostrarUsuarios(listaTrabalho, numUsuariosTrabalho);
                 break;
             case 5:
-                carregarAgenda(&listaUsuarios, &numUsuarios);
+              printf("\n");
+                deletarUsuarios(listaPessoal, &numUsuariosPessoal);
                 break;
             case 6:
+              printf("\n");
+                deletarUsuarios(listaTrabalho, &numUsuariosTrabalho);
+                break;
+            case 7:
+              printf("\n");
+                alterarUsuario(listaPessoal, numUsuariosPessoal);
+                break;
+            case 8:
+              printf("\n");
+                alterarUsuario(listaTrabalho, numUsuariosTrabalho);
+                break;
+            case 9:
+              printf("\n");
+                salvarAgenda(listaPessoal, numUsuariosPessoal, listaTrabalho, numUsuariosTrabalho);
+                break;
+            case 10:
+              printf("\n");
+                carregarAgenda(listaPessoal, &numUsuariosPessoal, listaTrabalho, &numUsuariosTrabalho);
+                break;
+            case 11:
                 printf("Encerrando o programa.\n");
                 break;
             default:
                 printf("Opção inválida. Tente novamente.\n");
         }
-    } while(opcao != 6);
+    } while(opcao != 11);
 
-    free(listaUsuarios);
     return 0;
 }
